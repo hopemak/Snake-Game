@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Snake Game</title>
+  <link rel="stylesheet" href="/snake.css" />
+  <script src="./snake.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>Snake</h1>
+    <div class="hud">
+      <div>Score: <span id="score">0</span></div>
+      <div>Speed: <span id="speed">8</span></div>
+      <button id="startBtn">Start / Restart</button>
+    </div>
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <p class="hint">Use Arrow keys or WASD to move. Press Start to restart after game over.</p>
+  </div>>
+  <script>
+
+// CONFIG
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const speedEl = document.getElementById('speed');
+const startBtn = document.getElementById('startBtn');
+
+const tileSize = 20; // size of one cell in px
+const cols = canvas.width / tileSize; // 400 / 20 = 20
+const rows = canvas.height / tileSize;
+
+let snake;      // array of {x,y} for snake body; index 0 is head
+let dir;        // current direction {x,y}
+let nextDir;    // buffer next direction to prevent reverse
+let food;       // food position {x,y}
+let score;
+let gameInterval;
+let fps = 8;    // starting speed (frames per second)
+let running = false;
+let gameOverFlag = false;
+
+// Initialize default state
+function reset() {
+  // start with 4-block snake in center moving right
+  const startX = Math.floor(cols / 2);
+  const startY = Math.floor(rows / 2);
+  snake = [
+    { x: startX, y: startY },
+    { x: startX - 1, y: startY },
+    { x: startX - 2, y: startY },
+    { x: startX - 3, y: startY }
+  ];
+  dir = { x: 1, y: 0 };
+  nextDir = { x: 1, y: 0 };
+  score = 0;
+  fps = 8;
+  gameOverFlag = false;
+  spawnFood();
+  updateHud();
+}
+
+// Spawn food in a free cell
+function spawnFood() {
+  while (true) {
+    const x = Math.floor(Math.random() * cols);
+    const y = Math.floor(Math.random() * rows);
+    // ensure food not on snake
+    if (!snake.some(seg => seg.x === x && seg.y === y)) {
+      food = { x, y };
+      return;
+    }
+  }
+}
+
+// Main game step
+function step() {
+  // move direction from buffer
+  dir = nextDir;
+
+  // compute new head
+  const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+  // wrap-around behavior (change to collision with wall if you prefer)
+  if (head.x < 0) head.x = cols - 1;
+  if (head.x >= cols) head.x = 0;
+  if (head.y < 0) head.y = rows - 1;
+  if (head.y >= rows) head.y = 0;
+
+  // check self-collision
+  if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
+    endGame();
+    return;
+  }
+
+  // add new head
+  snake.unshift(head);
+
+  // check food
+  if (head.x === food.x && head.y === food.y) {
+    score += 1;
+    // gradually increase speed every 4 points
+    if (score % 4 === 0) {
+      fps = Math.min(20, fps + 1);
+      restartInterval(); // apply new speed
+    }
+    spawnFood();
+    updateHud();
+  } else {
+    // remove tail
+    snake.pop();
+  }
+
+  // draw
+  draw();
+}
+
+// Draw everything
+function draw() {
+  // clear
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // draw food
+  drawRect(food.x, food.y, tileSize, '#ef4444'); // red food
+
+  // draw snake
+  for (let i = 0; i < snake.length; i++) {
+    const seg = snake[i];
+    // head different color
+    const color = i === 0 ? '#10b981' : '#06b6d4';
+    drawRect(seg.x, seg.y, tileSize, color);
+    // small inner square for style
+    ctx.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx.fillRect(seg.x * tileSize + 4, seg.y * tileSize + 4, tileSize - 8, tileSize - 8);
+  }
+}
+
+// helper: draw a rounded-ish rectangle (simple)
+function drawRect(cellX, cellY, size, fillStyle) {
+  ctx.fillStyle = fillStyle;
+  ctx.fillRect(cellX * size + 1, cellY * size + 1, size - 2, size - 2);
+}
+
+// Input handling
+window.addEventListener('keydown', (e) => {
+  const key = e.key;
+  // map keys to directions (x,y)
+  const map = {
+    ArrowUp:    { x: 0, y: -1 },
+    ArrowDown:  { x: 0, y: 1 },
+    ArrowLeft:  { x: -1, y: 0 },
+    ArrowRight: { x: 1, y: 0 },
+    w: { x: 0, y: -1 },
+    s: { x: 0, y: 1 },
+    a: { x: -1, y: 0 },
+    d: { x: 1, y: 0 },
+  };
+  if (map[key]) {
+    const nd = map[key];
+    // prevent 180-degree reverse: new direction cannot be exact opposite
+    if (nd.x === -dir.x && nd.y === -dir.y) return;
+    nextDir = nd;
+  }
+  // space to pause/resume
+  if (key === ' ' || key === 'Spacebar') {
+    toggleRunning();
+  }
+});
+
+// Start/Restart button
+startBtn.addEventListener('click', () => {
+  startGame();
+});
+
+// Toggle running (pause/resume)
+function toggleRunning() {
+  if (!running) {
+    startGame();
+  } else {
+    stopGame();
+  }
+}
+
+function startGame() {
+  reset();
+  running = true;
+  restartInterval();
+}
+
+function stopGame() {
+  running = false;
+  clearInterval(gameInterval);
+}
+
+function restartInterval() {
+  clearInterval(gameInterval);
+  // use setInterval to call step at desired fps
+  gameInterval = setInterval(() => {
+    if (!gameOverFlag) step();
+  }, 1000 / fps);
+  updateHud();
+}
+
+function endGame() {
+  gameOverFlag = true;
+  stopGame();
+  // show simple game over overlay on canvas
+  ctx.fillStyle = 'rgba(2,6,23,0.6)';
+  ctx.fillRect(0, canvas.height / 2 - 40, canvas.width, 80);
+  ctx.fillStyle = '#fff';
+  ctx.font = '22px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2 - 6);
+  ctx.font = '14px Arial';
+  ctx.fillText(`Score: ${score} — Click Start to play again`, canvas.width / 2, canvas.height / 2 + 18);
+}
+
+// Update HUD
+function updateHud() {
+  scoreEl.textContent = score;
+  speedEl.textContent = fps;
+}
+
+// initialize visuals before starting
+reset();
+draw();
+
+
+
+  </script>
+</body>
+</html>
