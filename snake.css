@@ -1,0 +1,13 @@
+.canva{
+    background-color: black;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html,body { height: 100%; font-family: Inter, system-ui, Arial, sans-serif; background: #0f172a; color: #e6eef8; display: flex; align-items: center; justify-content: center; }
+.container { text-align: center; width: 460px; }
+h1 { margin-bottom: 10px; font-size: 28px; letter-spacing: 1px; color: #f8fafc; }
+.hud { display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px; gap: 10px; }
+.hud div { font-weight: 600; }
+button { background:#2563eb; color:white; border:none; padding:6px 10px; border-radius:6px; cursor:pointer; }
+button:hover { filter:brightness(1.05); }
+canvas { background: linear-gradient(180deg,#07103a,#0b122b); border-radius: 8px; display:block; margin: 0 auto 8px; box-shadow: 0 6px 18px rgba(2,6,23,0.6); }
+.hint { font-size: 12px; opacity: 0.8; margin-top:6px; color:#c7d2fe; }
